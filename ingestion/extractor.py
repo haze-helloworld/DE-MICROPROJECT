@@ -64,12 +64,13 @@ def _handle_rate_limit(response: requests.Response) -> None:
     time.sleep(wait)
 
 
-def get_all(url: str, params: dict | None = None):
+def get_all(url: str, params: dict | None = None, max_pages: int | None = None):
     """
     Paginated GET — yields one item at a time.
     Follows the Link: <next> header automatically.
     """
     params = {**(params or {}), "per_page": 100}
+    pages_fetched = 0
     while url:
         resp = requests.get(url, headers=HEADERS, params=params, timeout=30)
 
@@ -83,6 +84,16 @@ def get_all(url: str, params: dict | None = None):
 
         data = resp.json()
         if isinstance(data, list):
+            yield from data
+        else:
+            yield data
+
+        pages_fetched += 1
+        if max_pages and pages_fetched >= max_pages:
+            break
+
+        url = resp.links.get("next", {}).get("url")
+        params = None  # next URL already carries query params
             yield from data
         else:
             yield data
@@ -169,38 +180,49 @@ def extract_repo(full_name: str) -> dict[str, list]:
     log.info("Extracting %s …", full_name)
 
     # Repository metadata (single object endpoint)
+    log.info("  Fetching metadata …")
     meta = list(get_all(f"{BASE}/repos/{owner}/{repo}"))
 
     # Languages breakdown (single object — {language: bytes})
+    log.info("  Fetching languages …")
     lang_raw = next(get_all(f"{BASE}/repos/{owner}/{repo}/languages"), {})
     langs = [{"repo": full_name, "languages": lang_raw}]
 
-    # Commits — incremental since SINCE
+    # Commits — incremental since SINCE (limit to 300 most recent for microproject performance)
+    log.info("  Fetching commits …")
     commits = [
         {**c, "repo": full_name}
         for c in get_all(
             f"{BASE}/repos/{owner}/{repo}/commits",
             {"since": SINCE},
+            max_pages=3,
         )
     ]
+    log.info("    -> got %d commits", len(commits))
 
     # Issues (includes PRs — we'll filter them apart in dbt)
+    log.info("  Fetching issues …")
     issues = [
         {**i, "repo": full_name}
         for i in get_all(
             f"{BASE}/repos/{owner}/{repo}/issues",
             {"state": "all", "since": SINCE},
+            max_pages=3,
         )
     ]
+    log.info("    -> got %d issues", len(issues))
 
-    # Pull requests
+    # Pull requests (recent only)
+    log.info("  Fetching pull requests …")
     prs = [
         {**p, "repo": full_name}
         for p in get_all(
             f"{BASE}/repos/{owner}/{repo}/pulls",
-            {"state": "all"},
+            {"state": "all", "sort": "updated", "direction": "desc"},
+            max_pages=3,
         )
     ]
+    log.info("    -> got %d PRs", len(prs))
 
     return {
         "REPOSITORIES": meta,
