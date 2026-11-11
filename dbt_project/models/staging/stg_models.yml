@@ -1,0 +1,60 @@
+version: 2
+
+models:
+  - name: stg_repositories
+    description: "One row per GitHub repository, latest snapshot only."
+    columns:
+      - name: repo_id
+        description: "GitHub's numeric repo ID."
+        tests: [unique, not_null]
+      - name: full_name
+        description: "owner/repo string e.g. apache/airflow."
+        tests: [not_null]
+      - name: primary_language
+        description: "Primary language as reported by GitHub."
+      - name: stars
+        tests: [not_null]
+
+  - name: stg_repo_languages
+    description: "One row per repo+language with byte count."
+    columns:
+      - name: full_name
+        tests: [not_null]
+      - name: language
+        tests: [not_null]
+      - name: bytes
+        tests: [not_null]
+
+  - name: stg_commits
+    description: "One row per commit SHA."
+    columns:
+      - name: commit_sha
+        tests: [unique, not_null]
+      - name: full_name
+        tests: [not_null]
+      - name: committed_at
+        tests: [not_null]
+
+  - name: stg_issues
+    description: "Issues only (pull requests excluded)."
+    columns:
+      - name: issue_id
+        tests: [unique, not_null]
+      - name: full_name
+        tests: [not_null]
+      - name: state
+        tests:
+          - accepted_values:
+              values: ['open', 'closed']
+
+  - name: stg_pull_requests
+    description: "Pull requests from the /pulls endpoint."
+    columns:
+      - name: pr_id
+        tests: [unique, not_null]
+      - name: full_name
+        tests: [not_null]
+      - name: state
+        tests:
+          - accepted_values:
+              values: ['open', 'closed']

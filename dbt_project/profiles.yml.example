@@ -1,0 +1,28 @@
+# Copy this file to ~/.dbt/profiles.yml  (NEVER commit profiles.yml to Git)
+# Each developer sets their own dev schema: DEV_TANVI or DEV_RIYA
+
+github_analytics:
+  target: dev
+  outputs:
+
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: SVC_DBT
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORM_ROLE
+      database: GITHUB_ANALYTICS
+      warehouse: GH_WH
+      schema: DEV_TANVI        # ← change to DEV_RIYA on Riya's machine
+      threads: 4
+
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: SVC_DBT
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORM_ROLE
+      database: GITHUB_ANALYTICS
+      warehouse: GH_WH
+      schema: ANALYTICS
+      threads: 4

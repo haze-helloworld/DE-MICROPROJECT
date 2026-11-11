@@ -1,0 +1,11 @@
+# Ingestion
+requests==2.32.3
+snowflake-connector-python==3.12.3
+cryptography==42.0.8
+
+# dbt (Riya's layer — included so a single venv covers everything)
+dbt-core==1.8.7
+dbt-snowflake==1.8.4
+
+# Linting / quality
+sqlfluff==3.1.0

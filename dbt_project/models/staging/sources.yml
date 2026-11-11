@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: github_raw
+    database: GITHUB_ANALYTICS
+    schema: RAW
+    description: "Raw JSON payloads loaded by the Python extractor."
+
+    tables:
+      - name: repositories
+        description: "One row per GitHub repository metadata snapshot."
+        loaded_at_field: loaded_at
+        freshness:
+          warn_after:  { count: 2, period: day }
+          error_after: { count: 4, period: day }
+
+      - name: repo_languages
+        description: "Language byte-counts per repository (from /languages endpoint)."
+
+      - name: commits
+        description: "Commit records fetched since the incremental window."
+
+      - name: issues
+        description: "Issues AND pull requests (GitHub returns both; PRs are filtered in staging)."
+
+      - name: pull_requests
+        description: "Pull request records from the /pulls endpoint."

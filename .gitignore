@@ -1,0 +1,34 @@
+# Secrets — NEVER commit these
+.env
+rsa_key.p8
+rsa_key.pub
+*.pem
+*.p8
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+dbt_project/.user.yml
+
+# Logs & temp
+logs/
+tmp/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
