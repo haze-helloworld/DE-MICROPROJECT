@@ -22,3 +22,4 @@ parsed as (
 
 select * from parsed
 qualify row_number() over (partition by commit_sha order by loaded_at desc) = 1
+

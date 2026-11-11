@@ -101,3 +101,4 @@ Parsed from RAW. One row per entity, deduped to latest load.
 - Timestamps: always `TIMESTAMP_TZ`
 - Repo identifier: always `full_name` (`owner/repo` string)
 - "Active" repo: at least one commit in the last 90 days (`pushed_at >= DATEADD(day, -90, CURRENT_DATE)`)
+

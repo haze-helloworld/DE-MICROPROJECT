@@ -32,3 +32,4 @@ parsed as (
 
 select * from parsed
 qualify row_number() over (partition by issue_id order by loaded_at desc) = 1
+

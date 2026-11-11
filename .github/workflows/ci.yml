@@ -81,3 +81,4 @@ jobs:
 
       - name: Run extractor
         run: python ingestion/extractor.py
+

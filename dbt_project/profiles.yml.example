@@ -26,3 +26,4 @@ github_analytics:
       warehouse: GH_WH
       schema: ANALYTICS
       threads: 4
+

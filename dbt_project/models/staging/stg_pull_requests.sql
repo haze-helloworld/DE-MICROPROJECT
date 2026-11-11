@@ -34,3 +34,4 @@ parsed as (
 
 select * from parsed
 qualify row_number() over (partition by pr_id order by loaded_at desc) = 1
+

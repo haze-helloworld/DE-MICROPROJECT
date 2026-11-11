@@ -33,3 +33,4 @@ parsed as (
 -- Keep only the most recent load per repo
 select * from parsed
 qualify row_number() over (partition by repo_id order by loaded_at desc) = 1
+

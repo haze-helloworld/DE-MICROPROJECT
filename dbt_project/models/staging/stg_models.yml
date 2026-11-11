@@ -58,3 +58,4 @@ models:
         tests:
           - accepted_values:
               values: ['open', 'closed']
+

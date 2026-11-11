@@ -83,3 +83,4 @@ docker compose up -d
 | `SNOWFLAKE_ACCOUNT` | e.g. `orgname-accountname` |
 | `SNOWFLAKE_USER` | `SVC_INGEST` |
 | `SNOWFLAKE_PRIVATE_KEY` | Contents of `rsa_key.p8` |
+

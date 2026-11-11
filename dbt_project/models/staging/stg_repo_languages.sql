@@ -26,3 +26,4 @@ flattened as (
 )
 
 select * from flattened
+
