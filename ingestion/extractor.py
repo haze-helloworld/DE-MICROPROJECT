@@ -94,12 +94,6 @@ def get_all(url: str, params: dict | None = None, max_pages: int | None = None):
 
         url = resp.links.get("next", {}).get("url")
         params = None  # next URL already carries query params
-            yield from data
-        else:
-            yield data
-
-        url = resp.links.get("next", {}).get("url")
-        params = None  # next URL already carries query params
 
 
 # ── Snowflake helpers ──────────────────────────────────────────────────────────
