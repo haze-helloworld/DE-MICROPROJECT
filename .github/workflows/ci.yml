@@ -30,9 +30,13 @@ jobs:
 
       - name: Write Snowflake private key
         env:
-          KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          KEY_B64: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
         run: |
-          printf '%s\n' "$KEY" > /tmp/rsa_key.p8
+          if echo "$KEY_B64" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "$KEY_B64" > /tmp/rsa_key.p8
+          else
+            echo "$KEY_B64" | base64 -d > /tmp/rsa_key.p8
+          fi
           chmod 600 /tmp/rsa_key.p8
 
       - name: Run extractor
@@ -59,9 +63,13 @@ jobs:
       # Write the private key from the secret to a temp file
       - name: Write Snowflake private key
         env:
-          KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+          KEY_B64: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
         run: |
-          printf '%s\n' "$KEY" > /tmp/rsa_key.p8
+          if echo "$KEY_B64" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "$KEY_B64" > /tmp/rsa_key.p8
+          else
+            echo "$KEY_B64" | base64 -d > /tmp/rsa_key.p8
+          fi
           chmod 600 /tmp/rsa_key.p8
 
       # Set up dbt profiles
