@@ -55,15 +55,63 @@ def run_query(query: str) -> pd.DataFrame:
 st.title("🤖 GitHub Developer Ecosystem - Conversational BI")
 st.caption("Ask questions about programming languages, repo activity, issues, and developer contributions.")
 
-# ── Sidebar Quick Metrics ─────────────────────────────────────────────────────
+# ── Sidebar Quick Metrics & Add Repo ──────────────────────────────────────────
+
+REPOS_TXT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ingestion", "repos.txt")
+
+def get_tracked_repos() -> list[str]:
+    if os.path.exists(REPOS_TXT_PATH):
+        with open(REPOS_TXT_PATH, "r") as f:
+            return [line.strip() for line in f if line.strip() and not line.startswith("#")]
+    return []
+
+def add_repo_and_ingest(repo_full_name: str):
+    from ingestion.extractor import extract_repo, load_to_snowflake
+    
+    # 1. Update repos.txt if not already present
+    current_repos = get_tracked_repos()
+    if repo_full_name not in current_repos:
+        with open(REPOS_TXT_PATH, "a") as f:
+            f.write(f"\n{repo_full_name}")
+    
+    # 2. Ingest the repo into Snowflake immediately
+    conn = get_snowflake_connection()
+    with conn.cursor() as cur:
+        data = extract_repo(repo_full_name)
+        for table, rows in data.items():
+            load_to_snowflake(cur, table, rows)
 
 with st.sidebar:
     st.header("⚡ Pipeline Status")
     st.success("Target: Snowflake (GITHUB_ANALYTICS)")
     st.info("Orchestration: Apache Airflow")
-    st.info("Ingestion: Airbyte / Python Extractor")
+    st.info("Ingestion: Airbyte / Extractor")
     st.info("Transform: dbt Core")
     
+    st.markdown("---")
+    st.subheader("➕ Add Public Repository")
+    st.caption("Track any GitHub repo dynamically into Snowflake:")
+    
+    new_repo = st.text_input("Enter owner/repo (e.g. vuejs/vue):", key="new_repo_input")
+    if st.button("🚀 Ingest Repo into Snowflake"):
+        if new_repo and "/" in new_repo:
+            with st.spinner(f"Extracting {new_repo} from GitHub and loading into Snowflake..."):
+                try:
+                    add_repo_and_ingest(new_repo.strip())
+                    st.success(f"✅ Successfully ingested {new_repo} into Snowflake!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to ingest: {e}")
+        else:
+            st.warning("Please enter in format: owner/repo")
+
+    # Display currently tracked repos
+    tracked = get_tracked_repos()
+    if tracked:
+        with st.expander(f"📁 Tracked Repositories ({len(tracked)})"):
+            for r in tracked:
+                st.code(r, language="text")
+
     st.markdown("---")
     st.subheader("💡 Example Questions to Ask:")
     examples = [
