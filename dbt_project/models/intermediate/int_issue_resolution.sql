@@ -8,8 +8,8 @@ with issues as (
 select
     full_name,
     count(*)                                                    as total_issues,
-    countif(state = 'closed')                                   as closed_issues,
-    countif(state = 'open')                                     as open_issues,
+    count_if(state = 'closed')                                  as closed_issues,
+    count_if(state = 'open')                                    as open_issues,
     round(avg(resolution_hours), 1)                             as avg_resolution_hours,
     round(median(resolution_hours), 1)                          as median_resolution_hours,
     round(avg(case when state = 'closed'
