@@ -234,12 +234,26 @@ if user_input:
                 # 2. Commits
                 elif "commit" in q_lower or "velocity" in q_lower:
                     sql = """
-                    SELECT 
-                        full_name as repo_name,
-                        total_commits,
-                        stars,
-                        forks
-                    FROM MARTS.DIM_REPOSITORY
+                    WITH latest_raw AS (
+                        SELECT 
+                            payload:full_name::string as repo_name,
+                            0 as total_commits,
+                            payload:stargazers_count::number as stars,
+                            payload:forks_count::number as forks
+                        FROM RAW.REPOSITORIES
+                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY ingested_at DESC) = 1
+                    ),
+                    marts AS (
+                        SELECT 
+                            full_name as repo_name,
+                            total_commits,
+                            stars,
+                            forks
+                        FROM MARTS.DIM_REPOSITORY
+                    )
+                    SELECT * FROM marts
+                    UNION ALL
+                    SELECT * FROM latest_raw WHERE repo_name NOT IN (SELECT repo_name FROM marts)
                     ORDER BY total_commits DESC
                     """
                     df = run_query(sql)
@@ -258,14 +272,30 @@ if user_input:
                 # 3. Stars / Forks / Health
                 elif "star" in q_lower or "fork" in q_lower or "repo" in q_lower or "health" in q_lower:
                     sql = """
-                    SELECT 
-                        full_name as repo,
-                        primary_language as language,
-                        stars,
-                        forks,
-                        open_issues,
-                        total_commits
-                    FROM MARTS.DIM_REPOSITORY
+                    WITH latest_raw AS (
+                        SELECT 
+                            payload:full_name::string as repo,
+                            payload:language::string as language,
+                            payload:stargazers_count::number as stars,
+                            payload:forks_count::number as forks,
+                            payload:open_issues_count::number as open_issues,
+                            0 as total_commits
+                        FROM RAW.REPOSITORIES
+                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY ingested_at DESC) = 1
+                    ),
+                    marts AS (
+                        SELECT 
+                            full_name as repo,
+                            primary_language as language,
+                            stars,
+                            forks,
+                            open_issues,
+                            total_commits
+                        FROM MARTS.DIM_REPOSITORY
+                    )
+                    SELECT * FROM marts
+                    UNION ALL
+                    SELECT * FROM latest_raw WHERE repo NOT IN (SELECT repo FROM marts)
                     ORDER BY stars DESC
                     """
                     df = run_query(sql)
