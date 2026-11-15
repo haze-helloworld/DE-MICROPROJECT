@@ -1,1 +1,5 @@
-# Astro Airflow Runtime Requirements
+streamlit
+plotly
+pandas
+snowflake-connector-python
+python-dotenv
