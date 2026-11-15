@@ -6,11 +6,9 @@ Automates the end-to-end modern data engineering pipeline:
 3. dbt test (Automated data quality verification)
 """
 
-import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 
 # Default arguments for enterprise reliability
 default_args = {
@@ -26,7 +24,7 @@ with DAG(
     dag_id='github_analytics_pipeline',
     default_args=default_args,
     description='Automated modern ETL pipeline: Airbyte/Ingest -> Snowflake RAW -> dbt -> MARTS',
-    schedule_interval='@daily',
+    schedule='@daily',
     start_date=datetime(2026, 11, 1),
     catchup=False,
     tags=['github', 'snowflake', 'airbyte', 'dbt'],
