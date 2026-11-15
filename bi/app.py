@@ -6,6 +6,7 @@ Queries Snowflake Data Marts in real time and answers natural language questions
 
 import os
 import sys
+import time
 
 # Ensure repository root is in sys.path so modules like `ingestion` can be imported
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -180,13 +181,13 @@ if "messages" not in st.session_state:
     ]
 
 # Display chat history
-for msg in st.session_state.messages:
+for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.write(msg["content"])
         if "chart" in msg:
-            st.plotly_chart(msg["chart"], use_container_width=True)
+            st.plotly_chart(msg["chart"], use_container_width=True, key=f"hist_chart_{idx}")
         if "data" in msg:
-            st.dataframe(msg["data"], use_container_width=True)
+            st.dataframe(msg["data"], use_container_width=True, key=f"hist_df_{idx}")
 
 # User input
 user_input = st.chat_input("Ask a question about your GitHub ecosystem...")
@@ -225,8 +226,9 @@ if user_input:
                     )
                     reply = "Here is the language ecosystem breakdown materialized by dbt in `MARTS.MART_LANGUAGE_ACTIVITY`:"
                     st.write(reply)
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.dataframe(df, use_container_width=True)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_lang_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_lang_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 2. Commits
@@ -248,8 +250,9 @@ if user_input:
                     )
                     reply = "Here is the commit volume across tracked repositories from `MARTS.DIM_REPOSITORY`:"
                     st.write(reply)
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.dataframe(df, use_container_width=True)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_commits_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_commits_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 3. Stars / Forks / Health
@@ -272,8 +275,9 @@ if user_input:
                     )
                     reply = "Here is the community health and engagement comparison materialized in `MARTS.DIM_REPOSITORY`:"
                     st.write(reply)
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.dataframe(df, use_container_width=True)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_stars_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_stars_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 4. Issues & Resolution
@@ -297,8 +301,9 @@ if user_input:
                     )
                     reply = "Here is the issue resolution efficiency and lifecycle analysis from `MARTS.MART_ISSUE_RESOLUTION`:"
                     st.write(reply)
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.dataframe(df, use_container_width=True)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_issues_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_issues_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 5. Top developers / contributors
@@ -322,8 +327,9 @@ if user_input:
                     )
                     reply = "Here are the top contributing developers materialized in `MARTS.MART_DEVELOPER_ACTIVITY`:"
                     st.write(reply)
-                    st.plotly_chart(fig, use_container_width=True)
-                    st.dataframe(df, use_container_width=True)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_dev_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_dev_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 else:
