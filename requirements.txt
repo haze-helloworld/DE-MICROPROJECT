@@ -1,6 +1,0 @@
-streamlit
-snowflake-connector-python==3.12.3
-pyarrow==14.0.2
-pandas
-plotly
-python-dotenv
