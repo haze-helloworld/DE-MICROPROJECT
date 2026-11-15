@@ -5,6 +5,13 @@ Queries Snowflake Data Marts in real time and answers natural language questions
 """
 
 import os
+import sys
+
+# Ensure repository root is in sys.path so modules like `ingestion` can be imported
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -89,25 +96,37 @@ def get_tracked_repos() -> list[str]:
     return []
 
 def add_repo_and_ingest(repo_full_name: str):
-    from ingestion.extractor import extract_repo, load_to_snowflake
-    import subprocess, sys
+    import subprocess
     
     # 1. Update repos.txt if not already present
     current_repos = get_tracked_repos()
     if repo_full_name not in current_repos:
-        with open(REPOS_TXT_PATH, "a") as f:
-            f.write(f"\n{repo_full_name}")
+        try:
+            with open(REPOS_TXT_PATH, "a") as f:
+                f.write(f"\n{repo_full_name}")
+        except Exception:
+            pass
     
     # 2. Ingest the repo into Snowflake immediately
+    try:
+        if hasattr(st, "secrets") and "GITHUB_TOKEN" in st.secrets:
+            os.environ["GITHUB_TOKEN"] = st.secrets["GITHUB_TOKEN"]
+    except Exception:
+        pass
+
+    from ingestion.extractor import extract_repo, load_to_snowflake
     conn = get_snowflake_connection()
     with conn.cursor() as cur:
         data = extract_repo(repo_full_name)
         for table, rows in data.items():
             load_to_snowflake(cur, table, rows)
 
-    # 3. Rebuild dbt Data Marts so BI analytics refresh automatically
-    dbt_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dbt_project")
-    subprocess.run([sys.executable, "-m", "dbt.cli.main", "run", "--target", "prod"], cwd=dbt_dir, capture_output=True)
+    # 3. Rebuild dbt Data Marts so BI analytics refresh automatically (if dbt is available)
+    try:
+        dbt_dir = os.path.join(ROOT_DIR, "dbt_project")
+        subprocess.run([sys.executable, "-m", "dbt.cli.main", "run", "--target", "prod"], cwd=dbt_dir, capture_output=True, timeout=60)
+    except Exception:
+        pass
 
 with st.sidebar:
     st.header("⚡ Pipeline Status")

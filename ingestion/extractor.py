@@ -39,12 +39,13 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
 }
+if GITHUB_TOKEN:
+    HEADERS["Authorization"] = f"Bearer {GITHUB_TOKEN}"
 BASE = "https://api.github.com"
 
 # Only fetch commits/issues/PRs updated after this date (incremental window).
