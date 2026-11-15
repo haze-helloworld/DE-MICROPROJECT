@@ -67,6 +67,7 @@ def get_tracked_repos() -> list[str]:
 
 def add_repo_and_ingest(repo_full_name: str):
     from ingestion.extractor import extract_repo, load_to_snowflake
+    import subprocess, sys
     
     # 1. Update repos.txt if not already present
     current_repos = get_tracked_repos()
@@ -80,6 +81,10 @@ def add_repo_and_ingest(repo_full_name: str):
         data = extract_repo(repo_full_name)
         for table, rows in data.items():
             load_to_snowflake(cur, table, rows)
+
+    # 3. Rebuild dbt Data Marts so BI analytics refresh automatically
+    dbt_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dbt_project")
+    subprocess.run([sys.executable, "-m", "dbt.cli.main", "run", "--target", "prod"], cwd=dbt_dir, capture_output=True)
 
 with st.sidebar:
     st.header("⚡ Pipeline Status")
@@ -162,68 +167,67 @@ if user_input:
                 if "language" in q_lower or "active repo" in q_lower:
                     sql = """
                     SELECT 
-                        payload:language::string as language,
-                        count(*) as repo_count,
-                        sum(payload:stargazers_count::number) as total_stars,
-                        sum(payload:forks_count::number) as total_forks
-                    FROM REPOSITORIES
-                    WHERE payload:language is not null
-                    GROUP BY 1
-                    ORDER BY repo_count DESC, total_stars DESC
+                        language,
+                        total_bytes,
+                        repo_count,
+                        pct_of_ecosystem
+                    FROM MARTS.MART_LANGUAGE_ACTIVITY
+                    ORDER BY total_bytes DESC
                     """
                     df = run_query(sql)
                     fig = px.bar(
-                        df, x="language", y="total_stars", color="language",
-                        title="Top Programming Languages by Community Stars & Activity",
+                        df, x="language", y="total_bytes", color="language",
+                        title="Ecosystem Language Share (dbt Mart: MART_LANGUAGE_ACTIVITY)",
                         text_auto=True
                     )
-                    reply = "Here is the language leaderboard based on the latest Snowflake ingestion! Python, Go, Rust, and JavaScript are leading community adoption:"
+                    reply = "Here is the language ecosystem breakdown materialized by dbt in `MARTS.MART_LANGUAGE_ACTIVITY`:"
                     st.write(reply)
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df, use_container_width=True)
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 2. Commits
-                elif "commit" in q_lower or "activity" in q_lower:
+                elif "commit" in q_lower or "velocity" in q_lower:
                     sql = """
                     SELECT 
-                        payload:repo::string as repo_name,
-                        count(*) as total_commits,
-                        count(distinct payload:author:login::string) as active_authors
-                    FROM COMMITS
-                    GROUP BY 1
+                        full_name as repo_name,
+                        total_commits,
+                        stars,
+                        forks
+                    FROM MARTS.DIM_REPOSITORY
                     ORDER BY total_commits DESC
                     """
                     df = run_query(sql)
                     fig = px.bar(
                         df, x="repo_name", y="total_commits", color="repo_name",
-                        title="Commit Velocity Across Target Repositories",
+                        title="Commit Velocity Across Repositories (dbt Mart: DIM_REPOSITORY)",
                         text_auto=True
                     )
-                    reply = "Here is the commit volume and contributor breakdown across tracked repositories:"
+                    reply = "Here is the commit volume across tracked repositories from `MARTS.DIM_REPOSITORY`:"
                     st.write(reply)
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df, use_container_width=True)
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 3. Stars / Forks / Health
-                elif "star" in q_lower or "fork" in q_lower or "repo" in q_lower:
+                elif "star" in q_lower or "fork" in q_lower or "repo" in q_lower or "health" in q_lower:
                     sql = """
                     SELECT 
-                        payload:full_name::string as repo,
-                        payload:language::string as language,
-                        payload:stargazers_count::number as stars,
-                        payload:forks_count::number as forks,
-                        payload:open_issues_count::number as open_issues
-                    FROM REPOSITORIES
+                        full_name as repo,
+                        primary_language as language,
+                        stars,
+                        forks,
+                        open_issues,
+                        total_commits
+                    FROM MARTS.DIM_REPOSITORY
                     ORDER BY stars DESC
                     """
                     df = run_query(sql)
                     fig = px.scatter(
                         df, x="stars", y="forks", size="stars", color="language", hover_name="repo",
-                        title="Repository Community Health: Stars vs. Forks"
+                        title="Repository Community Health: Stars vs. Forks (dbt Mart: DIM_REPOSITORY)"
                     )
-                    reply = "Here is the community strength and engagement comparison for all tracked projects:"
+                    reply = "Here is the community health and engagement comparison materialized in `MARTS.DIM_REPOSITORY`:"
                     st.write(reply)
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df, use_container_width=True)
@@ -233,46 +237,47 @@ if user_input:
                 elif "issue" in q_lower or "resolution" in q_lower or "bug" in q_lower:
                     sql = """
                     SELECT 
-                        payload:repo::string as repo,
-                        count(*) as total_issues,
-                        count_if(payload:state::string = 'closed') as closed_issues,
-                        count_if(payload:state::string = 'open') as open_issues
-                    FROM ISSUES
-                    GROUP BY 1
+                        full_name as repo,
+                        total_issues,
+                        closed_issues,
+                        open_issues,
+                        avg_resolution_hours,
+                        median_resolution_hours
+                    FROM MARTS.MART_ISSUE_RESOLUTION
                     ORDER BY total_issues DESC
                     """
                     df = run_query(sql)
                     df["close_rate_pct"] = (df["closed_issues"] / df["total_issues"] * 100).round(1)
                     fig = px.bar(
                         df, x="repo", y=["closed_issues", "open_issues"],
-                        barmode="group", title="Issue State Distribution (Open vs Closed)"
+                        barmode="group", title="Issue State Distribution (dbt Mart: MART_ISSUE_RESOLUTION)"
                     )
-                    reply = "Here is the issue resolution distribution across the projects:"
+                    reply = "Here is the issue resolution efficiency and lifecycle analysis from `MARTS.MART_ISSUE_RESOLUTION`:"
                     st.write(reply)
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df, use_container_width=True)
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 # 5. Top developers / contributors
-                elif "developer" in q_lower or "contributor" in q_lower or "who" in q_lower:
+                elif "developer" in q_lower or "contributor" in q_lower or "who" in q_lower or "author" in q_lower:
                     sql = """
                     SELECT 
-                        payload:author:login::string as contributor,
-                        count(*) as commits_count,
-                        count(distinct payload:repo::string) as repos_involved
-                    FROM COMMITS
-                    WHERE payload:author:login is not null
-                    GROUP BY 1
-                    ORDER BY commits_count DESC
+                        author_login as contributor,
+                        total_commits,
+                        repos_contributed_to,
+                        first_commit_at,
+                        last_commit_at
+                    FROM MARTS.MART_DEVELOPER_ACTIVITY
+                    ORDER BY total_commits DESC
                     LIMIT 15
                     """
                     df = run_query(sql)
                     fig = px.bar(
-                        df, x="contributor", y="commits_count", color="commits_count",
-                        title="Top 15 Most Active Developer Contributors",
+                        df, x="contributor", y="total_commits", color="total_commits",
+                        title="Top Developer Contributors (dbt Mart: MART_DEVELOPER_ACTIVITY)",
                         text_auto=True
                     )
-                    reply = "Here are the top contributing developers across all tracked ecosystems:"
+                    reply = "Here are the top contributing developers materialized in `MARTS.MART_DEVELOPER_ACTIVITY`:"
                     st.write(reply)
                     st.plotly_chart(fig, use_container_width=True)
                     st.dataframe(df, use_container_width=True)
