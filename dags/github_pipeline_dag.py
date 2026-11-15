@@ -5,7 +5,6 @@ Automates the end-to-end modern data engineering pipeline:
 2. dbt run & build (Staging -> Intermediate -> Marts)
 3. dbt test (Automated data quality verification)
 """
-
 import os
 from datetime import datetime, timedelta
 from airflow import DAG
