@@ -24,21 +24,44 @@ st.set_page_config(
 
 @st.cache_resource
 def get_snowflake_connection():
-    key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH", "rsa_key.p8")
-    with open(key_path, "rb") as fh:
-        key = serialization.load_pem_private_key(fh.read(), password=None)
+    def get_val(key_name, default=""):
+        try:
+            if hasattr(st, "secrets") and key_name in st.secrets:
+                return st.secrets[key_name]
+        except Exception:
+            pass
+        return os.environ.get(key_name, default)
+
+    account = get_val("SNOWFLAKE_ACCOUNT", "IWQNQNR-IJ38491")
+    user = get_val("SNOWFLAKE_USER", "SVC_INGEST")
+    role = get_val("SNOWFLAKE_ROLE", "INGEST_ROLE")
+    warehouse = get_val("SNOWFLAKE_WAREHOUSE", "GH_WH")
+    database = get_val("SNOWFLAKE_DATABASE", "GITHUB_ANALYTICS")
+
+    raw_key = get_val("SNOWFLAKE_PRIVATE_KEY", "")
+    if raw_key:
+        key_bytes = raw_key.encode("utf-8") if isinstance(raw_key, str) else raw_key
+    else:
+        key_path = get_val("SNOWFLAKE_PRIVATE_KEY_PATH", "rsa_key.p8")
+        if not os.path.isabs(key_path):
+            key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), key_path)
+        with open(key_path, "rb") as fh:
+            key_bytes = fh.read()
+
+    key = serialization.load_pem_private_key(key_bytes, password=None)
     pk = key.private_bytes(
         serialization.Encoding.DER,
         serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     )
+
     return snowflake.connector.connect(
-        account=os.environ.get("SNOWFLAKE_ACCOUNT", "IWQNQNR-IJ38491"),
-        user=os.environ.get("SNOWFLAKE_USER", "SVC_INGEST"),
+        account=account,
+        user=user,
         private_key=pk,
-        role="INGEST_ROLE",
-        warehouse="GH_WH",
-        database="GITHUB_ANALYTICS",
+        role=role,
+        warehouse=warehouse,
+        database=database,
         schema="RAW"
     )
 
