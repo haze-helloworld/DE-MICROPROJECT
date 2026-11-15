@@ -210,16 +210,17 @@ if user_input:
                     sql = """
                     SELECT 
                         language,
-                        total_bytes,
-                        repo_count,
-                        pct_of_ecosystem
+                        active_repo_count,
+                        total_stars,
+                        total_forks,
+                        total_commits
                     FROM MARTS.MART_LANGUAGE_ACTIVITY
-                    ORDER BY total_bytes DESC
+                    ORDER BY total_stars DESC
                     """
                     df = run_query(sql)
                     fig = px.bar(
-                        df, x="language", y="total_bytes", color="language",
-                        title="Ecosystem Language Share (dbt Mart: MART_LANGUAGE_ACTIVITY)",
+                        df, x="language", y="total_stars", color="language",
+                        title="Top Programming Languages by Community Stars (dbt Mart: MART_LANGUAGE_ACTIVITY)",
                         text_auto=True
                     )
                     reply = "Here is the language ecosystem breakdown materialized by dbt in `MARTS.MART_LANGUAGE_ACTIVITY`:"
