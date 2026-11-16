@@ -70,16 +70,43 @@ def get_snowflake_connection():
         role=role,
         warehouse=warehouse,
         database=database,
-        schema="RAW"
+        schema="RAW",
+        client_session_keep_alive=True
     )
 
+def get_valid_connection():
+    """Returns an active Snowflake connection, refreshing the cache if expired or closed."""
+    try:
+        conn = get_snowflake_connection()
+        if conn.is_closed():
+            get_snowflake_connection.clear()
+            return get_snowflake_connection()
+        return conn
+    except Exception:
+        get_snowflake_connection.clear()
+        return get_snowflake_connection()
+
 def run_query(query: str) -> pd.DataFrame:
-    conn = get_snowflake_connection()
-    with conn.cursor() as cur:
-        cur.execute(query)
-        cols = [desc[0].lower() for desc in cur.description]
-        data = cur.fetchall()
-        return pd.DataFrame(data, columns=cols)
+    """Executes a SQL query with automatic token expiration recovery."""
+    try:
+        conn = get_valid_connection()
+        with conn.cursor() as cur:
+            cur.execute(query)
+            cols = [desc[0].lower() for desc in cur.description]
+            data = cur.fetchall()
+            return pd.DataFrame(data, columns=cols)
+    except Exception as e:
+        err_msg = str(e).lower()
+        # If Snowflake session master token expired overnight or connection dropped, force re-auth and retry
+        if any(term in err_msg for term in ["250001", "master token", "renewed", "re-authentication", "closed", "session"]):
+            get_snowflake_connection.clear()
+            conn = get_snowflake_connection()
+            with conn.cursor() as cur:
+                cur.execute(query)
+                cols = [desc[0].lower() for desc in cur.description]
+                data = cur.fetchall()
+                return pd.DataFrame(data, columns=cols)
+        raise e
 
 # ── UI Header ─────────────────────────────────────────────────────────────────
 
@@ -116,11 +143,23 @@ def add_repo_and_ingest(repo_full_name: str):
         pass
 
     from ingestion.extractor import extract_repo, load_to_snowflake
-    conn = get_snowflake_connection()
-    with conn.cursor() as cur:
-        data = extract_repo(repo_full_name)
-        for table, rows in data.items():
-            load_to_snowflake(cur, table, rows)
+    try:
+        conn = get_valid_connection()
+        with conn.cursor() as cur:
+            data = extract_repo(repo_full_name)
+            for table, rows in data.items():
+                load_to_snowflake(cur, table, rows)
+    except Exception as e:
+        err_msg = str(e).lower()
+        if any(term in err_msg for term in ["250001", "master token", "renewed", "re-authentication", "closed", "session"]):
+            get_snowflake_connection.clear()
+            conn = get_snowflake_connection()
+            with conn.cursor() as cur:
+                data = extract_repo(repo_full_name)
+                for table, rows in data.items():
+                    load_to_snowflake(cur, table, rows)
+        else:
+            raise e
 
     # 3. Rebuild dbt Data Marts so BI analytics refresh automatically (if dbt is available)
     try:
@@ -135,6 +174,11 @@ with st.sidebar:
     st.info("Orchestration: Apache Airflow")
     st.info("Ingestion: Airbyte / Extractor")
     st.info("Transform: dbt Core")
+
+    if st.button("🔄 Refresh Snowflake Session", help="Clear stale session cache and re-authenticate via RSA Key-Pair"):
+        get_snowflake_connection.clear()
+        st.success("Snowflake session refreshed!")
+        st.rerun()
     
     st.markdown("---")
     st.subheader("➕ Add Public Repository")
