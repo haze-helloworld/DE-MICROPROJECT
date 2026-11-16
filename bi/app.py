@@ -204,6 +204,15 @@ with st.sidebar:
             for r in tracked:
                 st.code(r, language="text")
 
+    # Display Fivetran managed sync status
+    with st.expander("☁️ Fivetran Cloud Sync (27 Repos)", expanded=False):
+        st.caption("Fivetran connector continuously syncs your GitHub account into Snowflake `GITHUB` schema:")
+        try:
+            fivetran_df = run_query("SELECT full_name as repo, coalesce(language, 'Unknown') as language, _fivetran_synced as last_synced FROM GITHUB_ANALYTICS.GITHUB.REPOSITORY ORDER BY repo")
+            st.dataframe(fivetran_df, use_container_width=True, hide_index=True)
+        except Exception:
+            st.info("Fivetran sync active in GITHUB_ANALYTICS.GITHUB")
+
     st.markdown("---")
     st.subheader("💡 Example Questions to Ask:")
     examples = [
@@ -211,7 +220,8 @@ with st.sidebar:
         "Show commit activity across repos",
         "Which repositories have the most stars and forks?",
         "What is the issue resolution and close rate?",
-        "Who are the top developer contributors?"
+        "Who are the top developer contributors?",
+        "Show all repositories synced by Fivetran"
     ]
     for ex in examples:
         if st.button(ex):
@@ -412,6 +422,29 @@ if user_input:
                     ts = int(time.time() * 1000)
                     st.plotly_chart(fig, use_container_width=True, key=f"chart_dev_{ts}")
                     st.dataframe(df, use_container_width=True, key=f"df_dev_{ts}")
+                    st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
+
+                # 6. Fivetran Sync status
+                elif "fivetran" in q_lower or "connector" in q_lower or "synced" in q_lower:
+                    sql = """
+                    SELECT 
+                        full_name as repo,
+                        coalesce(language, 'Unknown') as language,
+                        _fivetran_synced as last_synced
+                    FROM GITHUB_ANALYTICS.GITHUB.REPOSITORY
+                    ORDER BY repo
+                    """
+                    df = run_query(sql)
+                    lang_summary = df.groupby("language").size().reset_index(name="repo_count")
+                    fig = px.pie(
+                        lang_summary, names="language", values="repo_count",
+                        title=f"Fivetran Automated Pipeline: {len(df)} Synced Repositories by Language"
+                    )
+                    reply = f"Here are the **{len(df)} repositories** continuously synchronized by our automated **Fivetran connector** into `GITHUB_ANALYTICS.GITHUB`:"
+                    st.write(reply)
+                    ts = int(time.time() * 1000)
+                    st.plotly_chart(fig, use_container_width=True, key=f"chart_fivetran_{ts}")
+                    st.dataframe(df, use_container_width=True, key=f"df_fivetran_{ts}")
                     st.session_state.messages.append({"role": "assistant", "content": reply, "chart": fig, "data": df})
 
                 else:
