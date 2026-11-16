@@ -31,9 +31,9 @@ select
     r.pushed_at,
     c.last_commit_at,
     coalesce(c.total_commits, 0)    as total_commits,
-    -- "Active" = at least one commit in the last 90 days
+    -- "Active" = pushed within last 365 days or high community adoption (>1000 stars)
     case
-        when r.pushed_at >= dateadd('day', -90, current_date()) then true
+        when r.pushed_at >= dateadd('day', -365, current_date()) or r.stars > 1000 then true
         else false
     end                             as is_active
 from repos r

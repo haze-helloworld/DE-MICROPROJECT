@@ -216,6 +216,14 @@ with st.sidebar:
     for ex in examples:
         if st.button(ex):
             st.session_state.user_question = ex
+            st.rerun()
+
+    st.markdown("---")
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hello Tanvi! I can answer questions about your GitHub data. Ask me anything or choose one from the sidebar!"}
+        ]
+        st.rerun()
 
 # ── Conversational Query Logic ────────────────────────────────────────────────
 
@@ -285,7 +293,7 @@ if user_input:
                             payload:stargazers_count::number as stars,
                             payload:forks_count::number as forks
                         FROM RAW.REPOSITORIES
-                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY ingested_at DESC) = 1
+                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY loaded_at DESC) = 1
                     ),
                     marts AS (
                         SELECT 
@@ -325,7 +333,7 @@ if user_input:
                             payload:open_issues_count::number as open_issues,
                             0 as total_commits
                         FROM RAW.REPOSITORIES
-                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY ingested_at DESC) = 1
+                        QUALIFY ROW_NUMBER() OVER (PARTITION BY payload:full_name::string ORDER BY loaded_at DESC) = 1
                     ),
                     marts AS (
                         SELECT 
